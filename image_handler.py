@@ -1,17 +1,29 @@
 import cv2
 import os
+import random
+from image_generator import imageGeneratorOpenAI
 
 class convertImageMaker: 
+    MIN_ASPECT_RATIO = 0.1 
+    MAX_ASPECT_RATIO = 100
+    MIN_AREA = 200 
+    MAX_AREA = 5000
+    MIN_AREA_DIFF = 0
+    MAX_AREA_DIFF = 20
+    MAX_REPLACEMENT = 2
+
     def __init__(self):
         self.box = []
         self.abs_dir = "./result_images"
         self.crop_location = str()
         self.convert_type = int()
         self.original_dir = ""
+        self.alternative_obj_index = 0
+        self.imageGenerator = imageGeneratorOpenAI()
         pass
 
-    def image_extract(self):
-        original_dir = 'result_images/original_image.jpg'
+    def image_extract(self, img_name='original_image'): 
+        original_dir = 'result_images/' + img_name + '.jpg'
         self.original_dir=original_dir
         print(original_dir)
         img_ori = cv2.imread(original_dir, cv2.IMREAD_COLOR)
@@ -34,8 +46,8 @@ class convertImageMaker:
             x, y, w, h = cv2.boundingRect(cnt)
             rect_area = w * h  # area size
             aspect_ratio = float(w) / h  # ratio = width/height
-            if (aspect_ratio >= 0.1) and (aspect_ratio <= 10000.0) and (rect_area >= 500) and (rect_area <= 10000):
-                if (0 <= abs(rect_area - rect_area2)) and (abs(rect_area - rect_area2) <= 20):
+            if (aspect_ratio >= self.MIN_ASPECT_RATIO) and (aspect_ratio <= self.MAX_ASPECT_RATIO) and (rect_area >= self.MIN_AREA) and (rect_area <= self.MAX_AREA):
+                if (self.MIN_AREA_DIFF <= abs(rect_area - rect_area2)) and (abs(rect_area - rect_area2) <= self.MAX_AREA_DIFF):
                     cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 1)
                     self.box.append(cv2.boundingRect(cnt))
 
@@ -60,6 +72,7 @@ class convertImageMaker:
         for i in range(len(self.box)):
             #crop_img = img_ori[y: y + h, x: x + w]
             crop_img = img_ori[self.box[i][1]:self.box[i][1] + self.box[i][3], self.box[i][0]:self.box[i][0] + self.box[i][2]]
+            #data in crop_location: y y+h x x+w
             data = str(self.box[i][1]) + " " + str(self.box[i][3]) + " " + str(self.box[i][0]) + " " + str(self.box[i][2]) + "\n"
             #write to crop_location.txt
             crop_text.write(data)
@@ -74,6 +87,64 @@ class convertImageMaker:
         crop_text.close()
         self.crop_location=os.path.join(crop_dir, "crop_location.txt")
     
+    # def image_convert(self, convert_type):
+    #     dir = 'crop_images/'
+    #     img_ori = cv2.imread(self.original_dir, cv2.IMREAD_COLOR)
+    #     #read cut image
+    #     img_cut1 = cv2.imread(os.path.join(dir, "cut_image1.jpg"), cv2.IMREAD_COLOR)
+    #     crop_text = open(os.path.join(dir, "crop_location.txt"), 'r')
+    #     lines = crop_text.readlines()
+    #     #flip 
+    #     if convert_type == 1:
+    #         dirs = os.listdir(dir)
+    #         for item in dirs:
+    #             if os.path.isfile(dir + item) and ".jpg" in item and "crop" in item:
+    #                 item_index = item.replace("crop_", "")
+    #                 item_index = int(item_index.replace(".jpg", ""))
+    #                 # print("item_index", item_index)
+    #                 img_paste = cv2.imread(dir + item, cv2.IMREAD_COLOR)
+    #                 height, width, channel = img_paste.shape
+    #                 #using cv2.getRotationMatrix2D to get the rotation matrix
+    #                 matrix = cv2.getRotationMatrix2D((width / 2, height / 2), 180, 1) 
+    #                 #rotate image using cv2.warpAffine 
+    #                 dst = cv2.warpAffine(img_paste, matrix, (width, height))
+
+    #                 crop_location = lines[item_index].split()
+    #                 print("crop_location 1: ", crop_location)
+    #                 crop_location = list(map(int, crop_location))
+    #                 print("crop_location 2: ", crop_location)
+    #                 img_cut1[crop_location[0]:crop_location[0] + crop_location[1],
+    #                 crop_location[2]:crop_location[2] + crop_location[3]] = dst
+    #                 pass
+    #             pass
+    #         # dst2 = cv2.resize(img_cut1, dsize=(0, 0), fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA)
+    #         # cv2.imwrite(os.path.join("result_images/converted_image.jpg"), dst2)
+    #         cv2.imwrite(os.path.join("result_images/converted_image.jpg"), img_cut1)
+    #         pass
+        
+    #     #change color 
+    #     elif convert_type == 2:
+    #         dirs = os.listdir(dir)
+    #         for item in dirs:
+    #             if os.path.isfile(dir + item) and ".jpg" in item and "crop" in item:
+    #                 # print(item)
+    #                 item_index = item.replace("crop_", "")
+    #                 item_index = int(item_index.replace(".jpg", ""))
+    #                 img_paste = cv2.imread(dir + item, cv2.IMREAD_COLOR)
+    #                 dst = cv2.bitwise_not(img_paste)
+
+    #                 crop_location = lines[item_index].split()
+    #                 crop_location = list(map(int, crop_location))
+    #                 img_cut1[crop_location[0]:crop_location[0] + crop_location[1],
+    #                 crop_location[2]:crop_location[2] + crop_location[3]] = dst
+    #                 pass
+    #             pass
+
+    #         # dst2 = cv2.resize(img_cut1, dsize=(0, 0), fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA)
+    #         # cv2.imwrite(os.path.join("result_images/converted_image.jpg"), dst2)
+    #         cv2.imwrite(os.path.join("result_images/converted_image.jpg"), img_cut1)
+    #         pass
+
     def image_convert(self, convert_type):
         dir = 'crop_images/'
         img_ori = cv2.imread(self.original_dir, cv2.IMREAD_COLOR)
@@ -90,17 +161,7 @@ class convertImageMaker:
                     item_index = int(item_index.replace(".jpg", ""))
                     # print("item_index", item_index)
                     img_paste = cv2.imread(dir + item, cv2.IMREAD_COLOR)
-                    height, width, channel = img_paste.shape
-                    #using cv2.getRotationMatrix2D to get the rotation matrix
-                    matrix = cv2.getRotationMatrix2D((width / 2, height / 2), 180, 1) 
-                    #rotate image using cv2.warpAffine 
-                    dst = cv2.warpAffine(img_paste, matrix, (width, height))
-
-                    crop_location = lines[item_index].split()
-                    crop_location = list(map(int, crop_location))
-                    img_cut1[crop_location[0]:crop_location[0] + crop_location[1],
-                    crop_location[2]:crop_location[2] + crop_location[3]] = dst
-                    pass
+                    self.flip_image(img_cut1, lines, img_paste, item_index)
                 pass
             # dst2 = cv2.resize(img_cut1, dsize=(0, 0), fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA)
             # cv2.imwrite(os.path.join("result_images/converted_image.jpg"), dst2)
@@ -116,15 +177,7 @@ class convertImageMaker:
                     item_index = item.replace("crop_", "")
                     item_index = int(item_index.replace(".jpg", ""))
                     img_paste = cv2.imread(dir + item, cv2.IMREAD_COLOR)
-                    dst = cv2.bitwise_not(img_paste)
-
-                    crop_location = lines[item_index].split()
-                    crop_location = list(map(int, crop_location))
-                    # print(crop_location)
-                    # print(img_paste.shape)
-                    # print(crop_location[0], crop_location[0] + crop_location[1], crop_location[2], crop_location[2] + crop_location[3])
-                    img_cut1[crop_location[0]:crop_location[0] + crop_location[1],
-                    crop_location[2]:crop_location[2] + crop_location[3]] = dst
+                    self.change_color_image(img_cut1, lines, img_paste, item_index)
                     pass
                 pass
 
@@ -132,5 +185,82 @@ class convertImageMaker:
             # cv2.imwrite(os.path.join("result_images/converted_image.jpg"), dst2)
             cv2.imwrite(os.path.join("result_images/converted_image.jpg"), img_cut1)
             pass
+        
+        elif convert_type == 3: 
+            pass
+    
+    def image_convert2(self): 
+        dir = 'crop_images/'
+        img_ori = cv2.imread(self.original_dir, cv2.IMREAD_COLOR)
+        #read cut image
+        img_cut1 = cv2.imread(os.path.join(dir, "cut_image1.jpg"), cv2.IMREAD_COLOR)
+        crop_text = open(os.path.join(dir, "crop_location.txt"), 'r')
+        lines = crop_text.readlines()
+        dirs = os.listdir(dir)
+        for item in dirs:
+            if os.path.isfile(dir + item) and ".jpg" in item and "crop" in item:
+                item_index = item.replace("crop_", "")
+                item_index = int(item_index.replace(".jpg", ""))
+                # print("item_index", item_index)
+                img_paste = cv2.imread(dir + item, cv2.IMREAD_COLOR)
+                if self.alternative_obj_index != self.MAX_REPLACEMENT: 
+                    convert_type = random.randint(1, 3) 
+                else: 
+                    convert_type = random.randint(1, 2)
+                if convert_type == 1:
+                    self.flip_image(img_cut1, lines, img_paste, item_index)
+                elif convert_type == 2: 
+                    self.change_color_image(img_cut1, lines, img_paste, item_index)
+                elif convert_type == 3:
+                    self.replace_with_another_object(img_cut1, lines, item_index)
+                    pass
+        #write the converted image
+        cv2.imwrite(os.path.join("result_images/converted_image.jpg"), img_cut1)
+        pass
+        
+    def flip_image(self, img_cut1, lines, img_paste, item_index): 
+        height, width, channel = img_paste.shape
+        #using cv2.getRotationMatrix2D to get the rotation matrix
+        matrix = cv2.getRotationMatrix2D((width / 2, height / 2), 180, 1) 
+        #rotate image using cv2.warpAffine 
+        dst = cv2.warpAffine(img_paste, matrix, (width, height))
 
+        crop_location = lines[item_index].split()
+        print("crop_location 1: ", crop_location)
+        crop_location = list(map(int, crop_location))
+        print("crop_location 2: ", crop_location)
+        img_cut1[crop_location[0]:crop_location[0] + crop_location[1],
+        crop_location[2]:crop_location[2] + crop_location[3]] = dst
+        pass
+        
+    def change_color_image(self, img_cut1, lines, img_paste, item_index): 
+        dst = cv2.bitwise_not(img_paste)
+
+        crop_location = lines[item_index].split()
+        crop_location = list(map(int, crop_location))
+        img_cut1[crop_location[0]:crop_location[0] + crop_location[1],
+        crop_location[2]:crop_location[2] + crop_location[3]] = dst
+        pass   
+
+    def replace_with_another_object(self, img_cut1, lines, item_index): 
+        crop_location = lines[item_index].split()
+        crop_location = list(map(int, crop_location)) 
+        h = crop_location[1] 
+        w = crop_location[3] 
+        # dimensions = str(w) + 'x' + str(h) 
+        # print(dimensions)
+        self.imageGenerator.generate_image("random object", 1, '256x256', 'b64_json') 
+        prefix = 'alternative_objects/obj_' + str(self.alternative_obj_index)
+        self.imageGenerator.write_image(prefix) 
+        dim = (w, h)
+        print(dim)
+        obj_img = cv2.imread((prefix + str('.jpg')))
+        resized = cv2.resize(obj_img, dim, interpolation = cv2.INTER_AREA)
+        cv2.imwrite((prefix + str('.jpg')), resized)
+        dst = cv2.imread((prefix + str('.jpg'))) 
+        print((prefix + str('.jpg'))) 
+        img_cut1[crop_location[0]:crop_location[0] + crop_location[1],
+        crop_location[2]:crop_location[2] + crop_location[3]] = dst
+        self.alternative_obj_index += 1
+        pass
 
