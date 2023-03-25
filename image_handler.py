@@ -1,21 +1,24 @@
 import cv2
 import os
 import random
+import numpy as np
 from image_generator import imageGeneratorOpenAI
 
 class convertImageMaker: 
     MIN_ASPECT_RATIO = 0.1 
     MAX_ASPECT_RATIO = 100
     MIN_AREA = 200 
-    MAX_AREA = 5000
+    MAX_AREA = 6000
     MIN_AREA_DIFF = 0
     MAX_AREA_DIFF = 20
     MAX_REPLACEMENT = 2
 
     def __init__(self):
         self.box = []
+        self.contours = []
         self.abs_dir = "./result_images"
         self.crop_location = str()
+        self.crop_cnt = 0
         self.convert_type = int()
         self.original_dir = ""
         self.alternative_obj_index = 0
@@ -35,7 +38,7 @@ class convertImageMaker:
         img_blur = cv2.GaussianBlur(img_gray, (3, 3), 0)
         #apply canny to blurred img to identify the edges of the rectangular boxes in the image
         img_canny = cv2.Canny(img_blur, 100, 200)
-        contours, hierarchy = cv2.findContours(img_canny, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours, hierarchy = cv2.findContours(img_canny, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)   
 
         for i in range(len(contours)):
             cnt = contours[i]
@@ -50,6 +53,9 @@ class convertImageMaker:
                 if (self.MIN_AREA_DIFF <= abs(rect_area - rect_area2)) and (abs(rect_area - rect_area2) <= self.MAX_AREA_DIFF):
                     cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 1)
                     self.box.append(cv2.boundingRect(cnt))
+                    print(str(self.box[len(self.box) - 1][3]) + " " + str(self.box[len(self.box) - 1][2]))
+                    self.contours.append(cnt)
+                    # print(cnt)
 
         #sort according to x
         for i in range(len(self.box)):  # Buble Sort on python
@@ -58,6 +64,9 @@ class convertImageMaker:
                     temp = self.box[j]
                     self.box[j] = self.box[j + 1]
                     self.box[j + 1] = temp
+                    tmp = self.contours[j] 
+                    self.contours[j] = self.contours[j + 1] 
+                    self.contours[j + 1] = tmp  
                     pass
                 pass
             pass
@@ -72,7 +81,7 @@ class convertImageMaker:
         for i in range(len(self.box)):
             #crop_img = img_ori[y: y + h, x: x + w]
             crop_img = img_ori[self.box[i][1]:self.box[i][1] + self.box[i][3], self.box[i][0]:self.box[i][0] + self.box[i][2]]
-            #data in crop_location: y y+h x x+w
+            #data in crop_location: y h x w
             data = str(self.box[i][1]) + " " + str(self.box[i][3]) + " " + str(self.box[i][0]) + " " + str(self.box[i][2]) + "\n"
             #write to crop_location.txt
             crop_text.write(data)
@@ -86,6 +95,27 @@ class convertImageMaker:
             pass
         crop_text.close()
         self.crop_location=os.path.join(crop_dir, "crop_location.txt")
+    
+    def crop_image(self, item_index): 
+        crop_list = []
+        crop_dir = 'crop_images'
+        img_ori = cv2.imread(self.original_dir, cv2.IMREAD_COLOR) 
+        img_cut = img_ori.copy()
+        img_cut2 = img_ori.copy()
+        crop_text = open(os.path.join(crop_dir, "crop_location.txt"), 'w')
+        crop_img = img_ori[self.box[item_index][1]:self.box[item_index][1] + self.box[item_index][3], self.box[item_index][0]:self.box[item_index][0]+self.box[item_index][2]]
+        #data in crop_location y, h, x, w
+        data = str(self.box[item_index][1]) + " " + str(self.box[item_index][3]) + " " + str(self.box[item_index][0]) + " " + str(self.box[item_index][2]) + "\n"
+        crop_text.write(data)
+        crop_list.append(crop_img)
+        print(crop_dir, "crop_" + str(item_index) + ".jpg")
+        cv2.imwrite(os.path.join(crop_dir, "crop_" + str(item_index) + ".jpg"), crop_img)
+        img_cut[self.box[item_index][1]:self.box[item_index][1] + self.box[item_index][3], self.box[item_index][0]:self.box[item_index][0] + self.box[item_index][2]] = 0
+        img_cut2[self.box[item_index][1]:self.box[item_index][1] + self.box[item_index][3], self.box[item_index][0]:self.box[item_index][0] + self.box[item_index][2]] = 255
+        cv2.imwrite(os.path.join(crop_dir, "cut_image1.jpg"), img_cut)
+        cv2.imwrite(os.path.join(crop_dir, "cut_image2.jpg"), img_cut2)
+        self.crop_cnt += 1
+        pass
 
     def image_convert(self, convert_type):
         dir = 'crop_images/'
@@ -130,37 +160,77 @@ class convertImageMaker:
         
         elif convert_type == 3: 
             pass
-    
-    def image_convert2(self): 
-        dir = 'crop_images/'
-        img_ori = cv2.imread(self.original_dir, cv2.IMREAD_COLOR)
-        #read cut image
-        img_cut1 = cv2.imread(os.path.join(dir, "cut_image1.jpg"), cv2.IMREAD_COLOR)
-        crop_text = open(os.path.join(dir, "crop_location.txt"), 'r')
-        lines = crop_text.readlines()
-        dirs = os.listdir(dir)
-        for item in dirs:
-            if os.path.isfile(dir + item) and ".jpg" in item and "crop" in item:
-                item_index = item.replace("crop_", "")
-                item_index = int(item_index.replace(".jpg", ""))
-                # print("item_index", item_index)
-                img_paste = cv2.imread(dir + item, cv2.IMREAD_COLOR)
-                if self.alternative_obj_index != self.MAX_REPLACEMENT: 
-                    convert_type = random.randint(1, 3) 
-                else: 
-                    convert_type = random.randint(1, 2)
-                if convert_type == 1:
-                    self.flip_image(img_cut1, lines, img_paste, item_index)
-                elif convert_type == 2: 
-                    self.change_color_image(img_cut1, lines, img_paste, item_index)
-                elif convert_type == 3:
-                    self.replace_with_another_object(img_cut1, lines, item_index)
-                    pass
-        #write the converted image
-        cv2.imwrite(os.path.join("result_images/converted_image.jpg"), img_cut1)
-        pass
         
+    def image_convert(self, convert_type): 
+        img_ori = cv2.imread(self.original_dir, cv2.IMREAD_COLOR) 
+        if convert_type == 1: 
+            for item_index in range(len(self.box)): 
+                self.flip_image2(img_ori, item_index) 
+                pass 
+        elif convert_type == 2: 
+            for item_index in range(len(self.box)): 
+                self.change_color_image2(img_ori, item_index) 
+                pass 
+        elif convert_type == 3:  
+            for item_index in range(len(self.box)): 
+                self.blend_with_background_color(img_ori, item_index) 
+                pass 
+        elif convert_type == 4: 
+            for item_index in range(len(self.box)): 
+                self.replace_with_another_object2(img_ori, item_index)
+
+    def image_convert2(self): 
+        img_ori = cv2.imread(self.original_dir, cv2.IMREAD_COLOR)
+        print("box length", len(self.box))
+        for item_index in range(len(self.box)): 
+            # if self.alternative_obj_index != self.MAX_REPLACEMENT: 
+            #     convert_type = random.randint(1, 3) 
+            # else: 
+            #     convert_type = random.randint(1, 2)
+            # convert_type = random.randint(1, 2) 
+            convert_type = 4
+            if convert_type == 1:
+                self.flip_image2(img_ori, item_index)
+                print(1)
+                pass
+            elif convert_type == 2:
+                self.change_color_image2(img_ori, item_index) 
+                print(2)
+            elif convert_type == 3:
+                self.blend_with_background_color(img_ori, item_index)
+                pass
+            elif convert_type == 4: 
+                self.flip_image_advanced(img_ori, item_index)
+                print(4)
+                pass
+            elif convert_type == 5: 
+                pass
+
+        cv2.imwrite(os.path.join("result_images/converted_image.jpg"), img_ori)
+        pass
+    
+    #write function to rotate contours with given angle
+    def rotate_contour(self, contour, angle=180): 
+        M = cv2.moments(contour)    
+        cx = int(M['m10'] / M['m00'])
+        cy = int(M['m01'] / M['m00']) 
+        rotation_matrix = cv2.getRotationMatrix2D((cx, cy), angle, 1) 
+        rotated_contour = cv2.transform(contour.reshape(-1, 1, 2), rotation_matrix).reshape(-1, 2) 
+        # print(rotated_contour) 
+        return rotated_contour
+    
+    def get_color_contour(self, img_ori, item_index): 
+        # x, y, w, h
+        y = self.box[item_index][1] + int(self.box[item_index][3] / 2) 
+        x = self.box[item_index][0] + int(self.box[item_index][2] / 2)
+        color = (img_ori[y, x])
+        b = int(color[0]) 
+        g = int(color[1]) 
+        r = int(color[2]) 
+        return b, g, r
+
     def flip_image(self, img_cut1, lines, img_paste, item_index): 
+        # self.image_save_crop_location()
         height, width, channel = img_paste.shape
         #using cv2.getRotationMatrix2D to get the rotation matrix
         matrix = cv2.getRotationMatrix2D((width / 2, height / 2), 180, 1) 
@@ -174,15 +244,48 @@ class convertImageMaker:
         img_cut1[crop_location[0]:crop_location[0] + crop_location[1],
         crop_location[2]:crop_location[2] + crop_location[3]] = dst
         pass
+    
+    def flip_image2(self, img_ori, item_index): 
+        # self.image_save_crop_location() 
+        # print("box:", self.box[item_index][3], self.box[item_index][2])
+        height = self.box[item_index][3]
+        width = self.box[item_index][2] 
+        self.crop_image(item_index)
+        dir = 'crop_images/'
+        dirs = os.listdir(dir) 
+        img_paste = cv2.imread((dir + 'crop_' + str(item_index) + '.jpg'), cv2.IMREAD_COLOR)
+        #using cv2.getRotationMatrix2D to get the rotation matrix
+        matrix = cv2.getRotationMatrix2D((width / 2, height / 2), 180, 1)
+        #rotate image using cv2.warpAffine 
+        dst = cv2.warpAffine(img_paste, matrix, (width, height)) 
+
+        img_ori[self.box[item_index][1]:self.box[item_index][1] + self.box[item_index][3],
+                self.box[item_index][0]:self.box[item_index][0] + self.box[item_index][2]] = dst 
+        pass
+        
+    def flip_image_advanced(self, img_ori, item_index=2): 
+        b, g, r = self.get_color_contour(img_ori, item_index)
+        self.blend_with_background_color(img_ori, item_index) 
+        cont = self.contours[item_index]
+        # print(cont)
+        rotated_contour = self.rotate_contour(cont) 
+        cv2.drawContours(img_ori, [rotated_contour], 0, (b, g, r), cv2.FILLED)
+        pass
         
     def change_color_image(self, img_cut1, lines, img_paste, item_index): 
         dst = cv2.bitwise_not(img_paste)
+        # dst = cv2.fillPoly(img_paste, [self.contours[item_index]], color=(255, 0, 0))
 
         crop_location = lines[item_index].split()
         crop_location = list(map(int, crop_location))
         img_cut1[crop_location[0]:crop_location[0] + crop_location[1],
         crop_location[2]:crop_location[2] + crop_location[3]] = dst
         pass   
+
+    def change_color_image2(self, img_ori, item_index): 
+        # print("contours:", self.contours[item_index])
+        cv2.fillPoly(img_ori, [self.contours[item_index]], color=(255, 0, 0))
+        pass
 
     def replace_with_another_object(self, img_cut1, lines, item_index): 
         crop_location = lines[item_index].split()
@@ -205,4 +308,33 @@ class convertImageMaker:
         crop_location[2]:crop_location[2] + crop_location[3]] = dst
         self.alternative_obj_index += 1
         pass
+
+    def replace_with_another_object2(self, img_ori, item_index): 
+        self.crop_image(item_index) 
+        h = self.box[item_index][2] 
+        w = self.box[item_index][3] 
+        self.imageGenerator.generate_image("random object", 1, '256x256', 'b64_json') 
+        prefix = 'alternative_objects/obj_' + + str(self.alternative_obj_index)
+        self.imageGenerator.write_image(prefix) 
+        dim = (w, h)
+        print(dim)
+        obj_img = cv2.imread((prefix + str('.jpg')))
+        resized = cv2.resize(obj_img, dim, interpolation = cv2.INTER_AREA)
+        cv2.imwrite((prefix + str('.jpg')), resized)
+        dst = cv2.imread((prefix + str('.jpg')))
+        img_ori[self.box[item_index][1]:self.box[item_index][1] + self.box[item_index][3],
+                self.box[item_index][0]:self.box[item_index][0] + self.box[item_index][2]] = dst 
+        self.alternative_obj_index += 1
+        pass
+        
+    def blend_with_background_color(self, img_ori, item_index): 
+        color = (img_ori[self.box[item_index][1], self.box[item_index][0]]) 
+        b = int(color[0]) 
+        g = int(color[1]) 
+        r = int(color[2]) 
+        print("b, g, r:", b, g, r)
+        cv2.drawContours(img_ori, [self.contours[item_index]], 0,(b, g, r), cv2.FILLED)
+        pass
+
+    
 

@@ -14,7 +14,8 @@ for f in files:
 
 convertTest = convertImageMaker() 
 convertTest.image_extract('pokemon') 
-convertTest.image_save_crop_location() 
+# convertTest.image_save_crop_location() 
 # convertTest.image_convert(convert_type=random.randint(1, 2)) 
 # convertTest.image_convert(convert_type=1) 
-convertTest.image_convert(convert_type=2)
+convertTest.image_convert2() 
+# convertTest.image_convert(convert_type=1)
