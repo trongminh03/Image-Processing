@@ -47,7 +47,7 @@ for i in range(len(contours)):
             countours_list.append(cnt)
 
     if (aspect_ratio >= MIN_ASPECT_RATIO) and (aspect_ratio <= MAX_ASPECT_RATIO) and (rect_area >= MIN_AREA) and (rect_area <= MAX_AREA):
-        print(x, y, w, h)
+        # print(x, y, w, h)
         cv2.rectangle(img_gray, (x, y), (x + w, y + h), (0, 255, 0), 1)
 
 # black_img = np.zeros_like(img_ori) 
@@ -69,6 +69,7 @@ for i in range(len(contours)):
 #     couple.append(countours_list[2][2][0])
 # # print("couple:", couple)
 # b,g,r = (img_ori[couple[0][0], couple[0][1]])  
+
 cont = countours_list[2] 
 rect = box[2]
 print("box:", box[2][1], box[2][0])
@@ -79,11 +80,11 @@ r = int(colord[2])
 print("b, g, r", b, g, r)
 cv2.drawContours(img_ori, [cont], 0, (b, g, r), cv2.FILLED) 
 
-# cv2.drawContours(mask, [cont], -1, 0, -1) 
-# image = cv2.bitwise_and(img_ori, img_ori, mask=mask)
-# cv2.drawContours(image, [cont], 0, (b, g, r), -1) 
+# # cv2.drawContours(mask, [cont], -1, 0, -1) 
+# # image = cv2.bitwise_and(img_ori, img_ori, mask=mask)
+# # cv2.drawContours(image, [cont], 0, (b, g, r), -1) 
 
-print(cont)
+# print(cont)
 M = cv2.moments(cont)
 cx = int(M['m10'] / M['m00'])
 cy = int(M['m01'] / M['m00'])
