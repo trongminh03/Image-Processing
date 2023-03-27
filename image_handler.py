@@ -162,9 +162,6 @@ class convertImageMaker:
         return rotated_contour
     
     def get_color_contour(self, img_ori, item_index): 
-        # x, y, w, h
-        # y = self.box[item_index][1] + int(self.box[item_index][3] / 2) 
-        # x = self.box[item_index][0] + int(self.box[item_index][2] / 2) 
         y = self.box[item_index][1] 
         x = self.box[item_index][0]
         M = cv2.moments(self.contours[item_index]) 
