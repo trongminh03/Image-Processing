@@ -26,7 +26,7 @@ img = img_ori.copy()
 img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 img_blur = cv2.GaussianBlur(img_gray, (3, 3), 0)
 img_canny = cv2.Canny(img_blur, 100, 200)
-contours, _ = cv2.findContours(img_canny, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+contours, _ = cv2.findContours(img_canny, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
 
 for i in range(len(contours)):
@@ -96,11 +96,8 @@ rotated_contour = cv2.transform(cont.reshape(-1, 1, 2), rotation_matrix).reshape
 cv2.drawContours(img_ori, [cont], 0, (b, g, r), cv2.FILLED) 
 cv2.drawContours(img_ori, [rotated_contour], 0, (0, 0, 0), cv2.FILLED)
 # print(b + g)
-while True: 
-    cv2.imshow('normal', img)
-    cv2.imshow('gray', img_gray)
-    cv2.imshow('black_img', img_ori) 
-    cv2.waitKey(0)
-    sys.exit() # to exit from all the processes
- 
-cv2.destroyAllWindows() # destroy all windows
+cv2.imshow('normal', img)
+cv2.imshow('gray', img_gray)
+cv2.imshow('black_img', img_ori) 
+cv2.waitKey(0)
+sys.exit() # to exit from all the processes

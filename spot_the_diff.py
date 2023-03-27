@@ -3,13 +3,10 @@ import numpy as np
 import imutils
 
 # Load the two images
-img1 = cv2.imread('result_images/pokemon.jpg')
+img1 = cv2.imread('result_images/pokemonAI.jpg')
 img2 = cv2.imread("result_images/converted_image.jpg")
-# Resize images if necessary
-# img1 = cv2.resize(img1, (600,360))
-# img2 = cv2.resize(img2, (600,360))
 
-img_height = img1.shape[0]
+# img_height = img1.shape[0]
 
 # Grayscale
 gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
