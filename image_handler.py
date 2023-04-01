@@ -11,8 +11,8 @@ class convertImageMaker:
     MAX_AREA = 5000
     MIN_AREA_DIFF = 0
     MAX_AREA_DIFF = 20
-    MAX_REPLACEMENT = 2
-    MAX_DIFFERENCE = 5
+    MAX_REPLACEMENT = 4
+    MAX_DIFFERENCE = 20
 
     def __init__(self):
         self.box = []
@@ -40,7 +40,7 @@ class convertImageMaker:
         img_blur = cv2.GaussianBlur(img_gray, (3, 3), 0)
         #apply canny to blurred img to identify the edges of objects in the image
         img_canny = cv2.Canny(img_blur, 100, 200)
-        contours, _ = cv2.findContours(img_canny, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)   
+        contours, _ = cv2.findContours(img_canny, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)   
 
         for i in range(len(contours)):
             cnt = contours[i]
@@ -173,22 +173,14 @@ class convertImageMaker:
         r = int(color[2]) 
         return b, g, r
 
-    def flip_image(self, img_ori, item_index):
+    def flip_image(self, img_ori, item_index): 
         x = self.box[item_index][0] 
         y = self.box[item_index][1] 
         w = self.box[item_index][2] 
         h = self.box[item_index][3] 
-        self.crop_image(item_index)
-        dir = 'crop_images/'
-        dirs = os.listdir(dir) 
-        img_paste = cv2.imread((dir + 'crop_' + str(item_index) + '.jpg'), cv2.IMREAD_COLOR)
-        #using cv2.getRotationMatrix2D to get the rotation matrix
-        matrix = cv2.getRotationMatrix2D((w / 2, h / 2), 180, 1)
-        #rotate image using cv2.warpAffine 
-        dst = cv2.warpAffine(img_paste, matrix, (w, h)) 
-
-        img_ori[y:y+h, x:x+w] = dst 
-        pass
+        roi = img_ori[y:y+h, x:x+w]
+        flipped_roi = cv2.flip(roi, 0)
+        img_ori[y:y+h, x:x+w] = flipped_roi
         
     def flip_image_advanced(self, img_ori, item_index=2): 
         b, g, r = self.get_color_contour(img_ori, item_index)
@@ -216,23 +208,46 @@ class convertImageMaker:
         pass
 
     def replace_with_another_object(self, img_ori, item_index): 
-        self.crop_image(item_index) 
         x = self.box[item_index][0] 
-        y = self.box[item_index][1]
-        h = self.box[item_index][2] 
-        w = self.box[item_index][3] 
-        self.imageGenerator.generate_image("random object", 1, '256x256', 'b64_json') 
-        prefix = 'alternative_objects/obj_' + str(self.alternative_obj_index)
-        self.imageGenerator.write_image(prefix) 
-        dim = (w, h)
-        print(dim)
-        obj_img = cv2.imread((prefix + str('.jpg')))
-        resized = cv2.resize(obj_img, dim, interpolation = cv2.INTER_AREA)
-        cv2.imwrite((prefix + str('.jpg')), resized)
-        dst = cv2.imread((prefix + str('.jpg')))
+        y = self.box[item_index][1] 
+        dir = 'alternative_objects/' 
+        files = len(os.listdir(dir)) 
+        print(files)
+        random_object = random.randint(0, files - 1)
+        prefix = 'alternative_objects/obj_' + str(random_object) + '.png'
+        obj = cv2.imread(prefix, -1) 
+        h, w, dst = self.insert_obj_to_img(obj, img_ori, y, x)
         img_ori[y:y+h, x:x+w] = dst 
         self.alternative_obj_index += 1
         pass
+
+    def insert_obj_to_img(self, obj, img_ori, pos_y, pos_x): 
+        # get the dimensions of the overlay image
+        overlay_height, overlay_width, overlay_channels = obj.shape
+        print("overlay", overlay_height, overlay_width)
+
+        # create a copy of the overlay image with a 4th channel for alpha transparency
+        overlay_image_with_alpha = np.zeros((overlay_height, overlay_width, 4), dtype=np.uint8)
+        overlay_image_with_alpha[:, :, :3] = obj[:, :, :3]
+        overlay_image_with_alpha[:, :, 3] = obj[:, :, 3] 
+
+        # create a Region of Interest (ROI) for the overlay image
+        roi = img_ori[pos_y:pos_y+overlay_height, pos_x:pos_x+overlay_width]
+
+        # create a mask for the overlay image
+        overlay_mask = overlay_image_with_alpha[:, :, 3]
+
+        # invert the mask
+        overlay_mask_inv = cv2.bitwise_not(overlay_mask)
+
+        # apply the mask to the overlay image and the inverted mask to the ROI
+        overlay_image_masked = cv2.bitwise_and(overlay_image_with_alpha, overlay_image_with_alpha, mask=overlay_mask)
+        roi_masked = cv2.bitwise_and(roi, roi, mask=overlay_mask_inv)
+
+        # combine the masked overlay image and the masked ROI using the add function
+        output_roi = cv2.add(overlay_image_masked[:, :, :3], roi_masked) 
+        return overlay_height, overlay_width, output_roi
+
         
     def blend_with_background_color(self, img_ori, item_index): 
         color = (img_ori[self.box[item_index][1], self.box[item_index][0]]) 

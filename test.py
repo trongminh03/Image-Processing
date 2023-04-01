@@ -99,5 +99,6 @@ cv2.drawContours(img_ori, [rotated_contour], 0, (0, 0, 0), cv2.FILLED)
 cv2.imshow('normal', img)
 cv2.imshow('gray', img_gray)
 cv2.imshow('black_img', img_ori) 
+cv2.imshow('canny', img_canny)
 cv2.waitKey(0)
 sys.exit() # to exit from all the processes

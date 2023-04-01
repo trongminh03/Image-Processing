@@ -3,7 +3,7 @@ import numpy as np
 import imutils
 
 # Load the two images
-img1 = cv2.imread('result_images/pokemonAI.jpg')
+img1 = cv2.imread('result_images/original_image1.jpg')
 img2 = cv2.imread("result_images/converted_image.jpg")
 
 # img_height = img1.shape[0]

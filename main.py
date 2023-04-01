@@ -13,5 +13,5 @@ for f in files:
 
 
 convertTest = convertImageMaker() 
-convertTest.image_extract('pokemon') 
-convertTest.image_convert(convert_type=5)
+convertTest.image_extract('original_image1') 
+convertTest.image_convert(convert_type=4)
