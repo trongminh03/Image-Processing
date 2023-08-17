@@ -5,4 +5,3 @@ Mục tiêu của dự án này là tạo ra những ảnh được thay đổi 
 
 ## Reports 
 https://drive.google.com/drive/folders/1s9j98Ma1kTcCWW2MMRAkw6z_WEZwbKBj?usp=share_link
-test
